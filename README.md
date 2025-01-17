@@ -30,3 +30,51 @@ How: how to connect between CS and Server?
 Use TCP, the server act reactively and cs behave proactively.
 When: when should the inference happen?
 Once the Server received a data from CS, an inference happens.
+
+import csv
+from scapy.all import sniff
+from scapy.layers.inet import IP, TCP, UDP
+
+# 输出文件名
+output_file = "packets.csv"
+
+# 定义一个函数来处理捕获的数据包
+def process_packet(packet):
+    packet_info = {
+        "timestamp": packet.time,
+        "source_ip": "",  # 默认值
+        "destination_ip": "",  # 默认值
+        "protocol": "Unknown",
+        "length": len(packet)
+    }
+
+    if IP in packet:
+        ip_layer = packet[IP]
+        packet_info["source_ip"] = ip_layer.src
+        packet_info["destination_ip"] = ip_layer.dst
+
+        if TCP in packet:
+            packet_info["protocol"] = "TCP"
+        elif UDP in packet:
+            packet_info["protocol"] = "UDP"
+        else:
+            packet_info["protocol"] = "IP"
+
+    # 将数据写入CSV文件
+    with open(output_file, "a", newline="", encoding="utf-8") as csvfile:
+        csvwriter = csv.writer(csvfile)
+        csvwriter.writerow([
+            packet_info["timestamp"],
+            packet_info["source_ip"],
+            packet_info["destination_ip"],
+            packet_info["protocol"],
+            packet_info["length"]
+        ])
+
+# 初始化CSV文件，写入表头
+with open(output_file, "w", newline="", encoding="utf-8") as csvfile:
+    csvwriter = csv.writer(csvfile)
+    csvwriter.writerow(["Timestamp", "Source IP", "Destination IP", "Protocol", "Length"])
+
+# 使用Scapy捕获来自eth0的数据包
+sniff(iface="eth0", prn=process_packet, store=False)
